@@ -42,6 +42,7 @@ GO
 CREATE TABLE Bills(
 billId INT IDENTITY(101,1) PRIMARY KEY,
 userId INT CONSTRAINT FK_Bills_Users FOREIGN KEY REFERENCES Users(userId),
+shopId INT CONSTRAINT FK_Bills_Shops FOREIGN KEY REFERENCES Shops(shopId),
 billPrice MONEY DEFAULT 0);
 GO
 
@@ -67,78 +68,231 @@ quantity INT NOT NULL DEFAULT 1,
 productPrice MONEY DEFAULT 0);
 GO
 
--- insert data in Users table
+-- Store Procedure of User table
 
-INSERT INTO Users (userName) VALUES
-('Alice'),
-('Bob'),
-('Charlie'),
-('Diana');
+CREATE PROCEDURE InsertUser
+    @userName NVARCHAR(50)
+AS
+BEGIN
+    IF LTRIM(RTRIM(@userName)) = ''
+    BEGIN
+        RAISERROR('User name cannot be empty',16,1); 
+        RETURN;
+    END
+
+    INSERT INTO Users (userName)
+    VALUES (@userName)
+END;
 GO
 
--- insert data in Foods table
-INSERT INTO Foods (foodName) VALUES
-('Burger'),
-('Pizza'),
-('Pasta'),
-('Salad'),
-('Sushi');
+-- Store Procedure of Foods table
+
+CREATE PROCEDURE InsertFood
+    @foodName NVARCHAR(100)
+AS
+BEGIN
+    IF LTRIM(RTRIM(@foodName)) = ''
+    BEGIN
+        RAISERROR('Food name cannot be empty',16,1);
+        RETURN;
+    END
+
+    IF EXISTS (SELECT 1 FROM Foods WHERE foodName = @foodName)
+    BEGIN
+        RAISERROR('This food item already exists',16,1);
+        RETURN;
+    END
+
+    INSERT INTO Foods (foodName)
+    VALUES (@foodName);
+END;
 GO
 
--- insert data in Shops table
-INSERT INTO Shops (shopName, shopLocation) VALUES
-('Tasty Bites', 'Downtown'),
-('Food Corner', 'Uptown'),
-('Snack Shack', 'Midtown');
+-- Store Procedure of Shops table
+
+CREATE PROCEDURE InsertShop
+    @shopName NVARCHAR(100),
+    @shopLocation NVARCHAR(100)
+AS
+BEGIN
+    IF LTRIM(RTRIM(@shopName)) = ''
+    BEGIN
+        RAISERROR('Shop name cannot be empty',16,1);
+        RETURN;
+    END
+
+    IF LTRIM(RTRIM(@shopLocation)) = ''
+    BEGIN
+        RAISERROR('Shop location cannot be empty',16,1);
+        RETURN;
+    END
+
+    IF EXISTS (
+        SELECT 1 FROM Shops
+        WHERE shopName = @shopName AND shopLocation = @shopLocation
+    )
+    BEGIN
+        RAISERROR('This shop already exists at the same location',16,1);
+        RETURN;
+    END
+
+    INSERT INTO Shops (shopName, shopLocation)
+    VALUES (@shopName, @shopLocation);
+END;
 GO
 
--- insert data in ShopFoodMenu table
+-- Store Procedure of ShopFoodMenu table
 
--- Tasty Bites menu
-INSERT INTO ShopFoodMenu (shopId, foodId, foodPrice) VALUES
-(1001, 101, 5.99),   -- Burger
-(1001, 102, 7.99),   -- Pizza
-(1001, 103, 6.50);   -- Pasta
+CREATE PROCEDURE InsertShopFoodMenu
+    @shopId INT,
+    @foodId INT,
+    @foodPrice MONEY
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Shops WHERE shopId = @shopId)
+    BEGIN
+        RAISERROR('Invalid shopId. Shop does not exist',16,1);
+        RETURN;
+    END
 
--- Food Corner menu
-INSERT INTO ShopFoodMenu (shopId, foodId, foodPrice) VALUES
-(1002, 102, 8.50),   -- Pizza
-(1002, 104, 4.99),   -- Salad
-(1002, 105, 12.99);  -- Sushi
+    IF NOT EXISTS (SELECT 1 FROM Foods WHERE foodId = @foodId)
+    BEGIN
+        RAISERROR('Invalid foodId. Food does not exist',16,1);
+        RETURN;
+    END
 
--- Snack Shack menu
-INSERT INTO ShopFoodMenu (shopId, foodId, foodPrice) VALUES
-(1003, 101, 6.25),   -- Burger
-(1003, 104, 5.50),   -- Salad
-(1003, 105, 13.25);  -- Sushi
+    IF EXISTS (SELECT 1 FROM ShopFoodMenu WHERE shopId = @shopId AND foodId = @foodId)
+    BEGIN
+        RAISERROR('This food item already exists in the shops menu',16,1);
+        RETURN;
+    END
+
+    IF @foodPrice <= 0
+    BEGIN
+        RAISERROR('Food price must be greater than 0',16,1);
+        RETURN;
+    END
+
+    INSERT INTO ShopFoodMenu (shopId, foodId, foodPrice)
+    VALUES (@shopId, @foodId, @foodPrice);
+END;
 GO
 
--- insert data in Bills table
-INSERT INTO Bills (userId, billPrice) VALUES
-(1, 20.97),  -- Alice
-(2, 21.99),  -- Bob
-(1, 18.49),  -- Alice second bill
-(3, 13.75);  -- Charlie
+-- Store Procedure of Bills table
+
+CREATE PROCEDURE InsertBill
+    @userId INT,
+    @shopId INT
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Users WHERE userId = @userId)
+    BEGIN
+        RAISERROR('Invalid userId. User does not exist',16,1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM Shops WHERE shopId = @shopId)
+    BEGIN
+        RAISERROR('Invalid shopId. Shop does not exist',16,1);
+        RETURN;
+    END
+
+    INSERT INTO Bills (userId, shopId)
+    VALUES (@userId, @shopId);
+END;
 GO
 
--- insert data in OrderDetail table
+-- Store Procedure of OrderDetail table
 
--- Bill 1 by Alice
-INSERT INTO OrderDetail (billId, shopMenuId, quantity, productPrice) VALUES
-(101, 1, 2, 5.99),   -- 2 Burgers from Tasty Bites
-(101, 2, 1, 7.99);   -- 1 Pizza from Tasty Bites
+CREATE PROCEDURE InsertOrderDetail
+    @billId INT,
+    @shopMenuId INT,
+    @quantity INT
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Bills WHERE billId = @billId)
+    BEGIN
+        RAISERROR('Invalid billId. Bill does not exist',16,1);
+        RETURN;
+    END
 
--- Bill 2 by Bob
-INSERT INTO OrderDetail (billId, shopMenuId, quantity, productPrice) VALUES
-(102, 5, 1, 8.50),   -- 1 Pizza from Food Corner
-(102, 6, 2, 4.99);   -- 2 Salads from Food Corner
+    IF NOT EXISTS (SELECT 1 FROM ShopFoodMenu WHERE shopMenuId = @shopMenuId)
+    BEGIN
+        RAISERROR('Invalid shopMenuId. Menu item does not exist',16,1);
+        RETURN;
+    END
 
--- Bill 3 by Alice (second bill)
-INSERT INTO OrderDetail (billId, shopMenuId, quantity, productPrice) VALUES
-(103, 3, 1, 6.50),   -- 1 Pasta from Tasty Bites
-(103, 8, 2, 5.50);   -- 2 Salads from Snack Shack
+    IF @quantity <= 0
+    BEGIN
+        RAISERROR('Quantity must be greater than 0',16,1);
+        RETURN;
+    END
 
--- Bill 4 by Charlie
-INSERT INTO OrderDetail (billId, shopMenuId, quantity, productPrice) VALUES
-(104, 9, 1, 13.25);  -- 1 Sushi from Snack Shack
+    DECLARE @billShopId INT;
+    SELECT @billShopId = shopId FROM Bills WHERE billId = @billId;
+
+    DECLARE @menuShopId INT, @foodPrice MONEY;
+    SELECT @menuShopId = shopId, @foodPrice = foodPrice
+    FROM ShopFoodMenu
+    WHERE shopMenuId = @shopMenuId;
+
+    IF @billShopId != @menuShopId
+    BEGIN
+        RAISERROR('This menu item does not belong to the shop selected in the bill',16,1);
+        RETURN;
+    END
+
+    INSERT INTO OrderDetail (billId, shopMenuId, quantity, productPrice)
+    VALUES (@billId, @shopMenuId, @quantity, @foodPrice);
+
+    UPDATE Bills
+    SET billPrice = billPrice + (@quantity * @foodPrice)
+    WHERE billId = @billId;
+END;
 GO
+
+-- Insert data in Users table
+
+EXEC InsertUser 'Sriram'
+EXEC InsertUser 'Raman'
+EXEC InsertUser 'Ravi'
+EXEC InsertUser 'Suresh'
+
+-- Insert data in Foods table
+
+EXEC InsertFood 'Veg Biryani';
+EXEC InsertFood 'Chicken Roll';
+EXEC InsertFood 'Paneer Butter Masala';
+EXEC InsertFood 'Egg Fried Rice';
+EXEC InsertFood 'Mutton Curry';
+
+-- Insert data in Shops table
+
+EXEC InsertShop 'Food Point', 'Anna Nagar';
+EXEC InsertShop 'Spice Hub', 'T. Nagar';
+EXEC InsertShop 'Hot Plate', 'Velachery';
+
+-- Insert data in ShopFoodMenu table
+
+-- Food Point
+EXEC InsertShopFoodMenu @shopId = 1001, @foodId = 101, @foodPrice = 120.00; -- Veg Biryani
+EXEC InsertShopFoodMenu @shopId = 1001, @foodId = 102, @foodPrice = 150.00; -- Chicken Roll
+
+-- Spice Hub
+EXEC InsertShopFoodMenu @shopId = 1002, @foodId = 103, @foodPrice = 180.00; -- Paneer Butter Masala
+EXEC InsertShopFoodMenu @shopId = 1002, @foodId = 104, @foodPrice = 110.00; -- Egg Fried Rice
+
+-- Hot Plate
+EXEC InsertShopFoodMenu @shopId = 1003, @foodId = 105, @foodPrice = 220.00; -- Mutton Curry
+
+-- Insert data in Bills table
+
+EXEC InsertBill @userId = 1, @shopId = 1001;  -- billId should be 101
+
+-- Insert data in OrderDetail  table
+
+-- Sriram orders 2 Veg Biryani (shopMenuId = 1), 1 Chicken Roll (shopMenuId = 2)
+EXEC InsertOrderDetail @billId = 101, @shopMenuId = 1, @quantity = 2; -- 2 x 120 = 240
+EXEC InsertOrderDetail @billId = 101, @shopMenuId = 2, @quantity = 1; -- 1 x 150 = 150
+
+-- Total billPrice will now be updated to 390
