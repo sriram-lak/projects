@@ -115,7 +115,7 @@ GO
 
 CREATE TABLE Payment (
     PaymentId INT PRIMARY KEY IDENTITY(1,1),
-    OrderId INT UNIQUE FOREIGN KEY REFERENCES Orders(OrderId),
+    OrderId INT UNIQUE CONSTRAINT FK_Payment_Orders FOREIGN KEY REFERENCES Orders(OrderId),
     PaymentMethodId INT CONSTRAINT FK_Payment_PaymentMethod FOREIGN KEY REFERENCES PaymentMethod(PaymentMethodId),
     PaymentDate DATETIME DEFAULT GETDATE(),
     AmountPaid DECIMAL(10,2) NOT NULL
