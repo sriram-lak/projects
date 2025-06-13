@@ -1,0 +1,122 @@
+ What is a Stored Procedure?
+ 
+A Stored Procedure is a precompiled set of one or more SQL statements stored in the database. 
+It allows you to perform operations like inserting, updating, or retrieving data with logic (like IF, WHILE) in a reusable and 
+secure manner.
+
+ Types of Stored Procedures:
+ 
+System Stored Procedures – Predefined by SQL Server
+
+User-defined Stored Procedures – Created by users
+
+Temporary Stored Procedures – Exist temporarily
+
+Extended Stored Procedures – Call external programs
+
+System Stored Procedures :
+
+sp_help
+Purpose: Shows detailed information about a table, view, or any object.
+
+Example:
+
+EXEC sp_help 'Employees';
+
+Shows all column names, types, identity, indexes, constraints, etc. of Employees.
+ 
+sp_helptext
+Purpose: Shows the definition (code) of a stored procedure, trigger, or view.
+
+Example:
+
+EXEC sp_helptext 'GetEmployeeDetails';
+
+Displays the full SQL code inside the procedure GetEmployeeDetails.
+
+sp_rename
+Purpose: Renames a database object (table, column, etc.)
+
+Example:
+
+EXEC sp_rename 'Employees.EmpName', 'EmployeeName', 'COLUMN';
+
+Renames the column EmpName to EmployeeName in the Employees table.
+
+sp_columns
+Purpose: Lists all columns and their data types for a table.
+
+Example:
+
+EXEC sp_columns 'Orders';
+
+Shows column name, type, length, nullable, etc.
+
+
+User-defined Stored Procedures :
+
+A User-defined Stored Procedure (SP) in SQL Server is a set of precompiled SQL statements
+written by the developer/user to perform a specific task.
+
+Types of User-defined Stored Procedures :
+
+Without Parameters
+
+Example : Procedure Without Parameters
+
+CREATE PROCEDURE GetAllEmployees
+AS
+BEGIN
+    SELECT * FROM Employees;
+END;
+
+With Input Parameters
+
+Example : Procedure With Input Parameters
+
+CREATE PROCEDURE GetEmployeeByID
+    @EmpID INT
+AS
+BEGIN
+    SELECT * FROM Employees WHERE EmpID = @EmpID;
+END;
+
+With Output Parameters
+
+Example : Procedure With Output Parameter
+
+CREATE PROCEDURE GetTotalSalary
+    @DeptID INT,
+    @TotalSalary DECIMAL(10,2) OUTPUT
+AS
+BEGIN
+    SELECT @TotalSalary = SUM(Salary)
+    FROM Employees
+    WHERE DepartmentID = @DeptID;
+END;
+
+Usage:
+
+DECLARE @Salary DECIMAL(10,2);
+EXEC GetTotalSalary @DeptID = 2, @TotalSalary = @Salary OUTPUT;
+PRINT @Salary;
+
+With Return Values
+
+Example : Procedure With Return Value
+
+CREATE PROCEDURE CheckEmployeeExists
+    @EmpID INT
+AS
+BEGIN
+    IF EXISTS (SELECT 1 FROM Employees WHERE EmpID = @EmpID)
+        RETURN 1; -- Exists
+    ELSE
+        RETURN 0; -- Not exists
+END;
+
+Usage:
+
+DECLARE @Result INT;
+EXEC @Result = CheckEmployeeExists @EmpID = 101;
+PRINT @Result;
